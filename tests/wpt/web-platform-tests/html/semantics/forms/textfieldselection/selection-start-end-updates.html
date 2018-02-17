@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset=utf-8>
+<title></title>
+<script src=/resources/testharness.js></script>
+<script src=/resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+  // Is setRangeText the right way to modify the text?
+  // How to set the cursor position, is setSelectionRange the right way?
+  // How to detect that the browser doesn't support selection?
+  // Is it expected that the two commented-out tests below fail?
+  // Write tests for newlines (both \r\n and \n) in textareas
+
+  function createInputElement(value, append) {
+    var el = document.createElement("input");
+    el.type = "text";
+    el.value = value;
+    el.id = "input" + (append ? "-appended" : "-not-appended");
+    if (append) {
+      document.body.appendChild(el);
+    }
+    return el;
+  };
+
+  function createTextareaElement(value, append) {
+    var el = document.createElement("textarea");
+    el.value = value;
+
+    el.id = "textarea" + (append ? "-appended" : "-not-appended");
+    if (append) {
+      document.body.appendChild(el);
+    }
+    return el;
+  };
+
+  function createTestElements(value) {
+    return [ createInputElement(value, true),
+             createInputElement(value, false),
+             createTextareaElement(value, true),
+             createTextareaElement(value, false),
+           ];
+  }
+
+  test(function() {
+    for (let el of createTestElements("åbcdfghiøæ")) {
+      el.setSelectionRange(3, 10);
+      el.setRangeText("", 9, 10);
+      assert_equals(el.selectionStart, 3);
+      assert_equals(el.selectionEnd, 9);
+    }
+  }, `Removing characters from the end of a selection should correct selectionEnd to stay inside the value`);
+
+  test(function() {
+    for (let el of createTestElements("åbcdfghiøæ")) {
+      el.setSelectionRange(3, 10);
+      el.setRangeText("", 2, 10);
+      assert_equals(el.selectionStart, 2);
+      assert_equals(el.selectionEnd, 2);
+    }
+  }, `Removing enough characters should correct both selectionStart and selectionEnd to stay inside the value`);
+
+  test(function() {
+    for (let el of createTestElements("åbcdfghiøæ")) {
+      el.setSelectionRange(3, 5);
+      el.setRangeText("XX", 0, 2);
+      assert_equals(el.selectionStart, 3);
+      assert_equals(el.selectionEnd, 5);
+    }
+  }, `Replacing text before the selection shouldn't modify selectionStart or selectionEnd`);
+
+  test(function() {
+    for (let el of createTestElements("åbcdfghiøæ")) {
+      el.setSelectionRange(3, 5);
+      el.setRangeText("XXXXXX", 7, 9);
+      assert_equals(el.selectionStart, 3);
+      assert_equals(el.selectionEnd, 5);
+    }
+  }, `Replacing text after the selection shouldn't modify selectionStart or selectionEnd`);
+
+  // Is it expected that replacing text will update selection{Start,End}?
+  // test(function() {
+  //   for (let el of createTestElements(testValue)) {
+  //     el.value = "åbcdfghiøæ";
+  //     el.setSelectionRange(3, 5);
+  //     el.setRangeText("XXXX", 2, 6);
+  //     assert_equals(el.selectionStart, 3);
+  //     assert_equals(el.selectionEnd, 5);
+  //   }
+  // }, `Replacing the text in the selection shouldn't modify selectionStart or selectionEnd`);
+
+  // Is it expected that replacing text will update selection{Start,End}?
+  // test(function() {
+  //   for (let el of createTestElements(testValue)) {
+  //     el.value = "åbcdfghiøæ";
+  //     el.setSelectionRange(3, 5);
+  //     el.setRangeText("dfgh", 2, 6);
+  //     assert_equals(el.selectionStart, 3);
+  //     assert_equals(el.selectionEnd, 5);
+  //   }
+  // }, `Faux-replacing the text in the selection shouldn't modify selectionStart or selectionEnd`);
+
+  test(function() {
+    for (let el of createTestElements("åbcdfghiøæ")) {
+      el.setSelectionRange(10, 10);
+      el.setRangeText("åbcdfghi", 0, 10);
+      assert_equals(el.selectionStart, 8);
+      assert_equals(el.selectionEnd, 8);
+    }
+  }, `Without selection, the cursor should stay at the end when the text becomes shorter`);
+</script>
