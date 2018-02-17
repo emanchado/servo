@@ -257,7 +257,7 @@ impl ServoParser {
         assert_eq!(script_nesting_level, 0);
 
         self.script_nesting_level.set(script_nesting_level + 1);
-        script.execute(result);
+        self.handle_script(script, Some(result));
         self.script_nesting_level.set(script_nesting_level);
 
         if !self.suspended.get() {
@@ -470,13 +470,44 @@ impl ServoParser {
             let script_nesting_level = self.script_nesting_level.get();
 
             self.script_nesting_level.set(script_nesting_level + 1);
-            script.prepare();
+            self.handle_script(&script, None);
             self.script_nesting_level.set(script_nesting_level);
 
             if self.document.has_pending_parsing_blocking_script() {
                 self.suspended.set(true);
                 return;
             }
+        }
+    }
+
+    fn handle_script(&self, script: &HTMLScriptElement, result: Option<ScriptResult>) {
+        if self.script_nesting_level.get() == 1 {
+            match *self.tokenizer.borrow_mut() {
+                Tokenizer::AsyncHtml(ref mut tok) => {
+                    if result.is_none() {
+                        tok.start_speculative_parsing(&*self.network_input.borrow());
+                    }
+                },
+                _ => {},
+            };
+
+            match result {
+                Some(result) => script.execute(result),
+                None => script.prepare(),
+            };
+
+            match *self.tokenizer.borrow_mut() {
+                Tokenizer::AsyncHtml(ref mut tok) => {
+                    tok.end_speculative_parsing(&mut *self.network_input.borrow_mut(),
+                        self.document.has_pending_parsing_blocking_script());
+                },
+                _ => {},
+            };
+        } else {
+            match result {
+                Some(result) => script.execute(result),
+                None => script.prepare(),
+            };
         }
     }
 
